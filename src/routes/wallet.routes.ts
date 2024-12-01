@@ -5,9 +5,14 @@ import { getBalanceController } from "../controllers/wallet/getBalanceController
 import { sendTransactionController } from "../controllers/wallet/sendTransactionController";
 import { getTransactionHistoryController } from "../controllers/wallet/getTransactionHistory";
 import fundWalletFromOtherWalletController from "../controllers/wallet/fundWalletFromOtherWalletController";
+import getSignatureFromPrimaryWalletController from "../controllers/wallet/getSignatureFromPrimaryWalletController";
 
 const router = Router();
 
+router.get(
+  "/get-signature-from-primary-wallet",
+  routeWrapper(getSignatureFromPrimaryWalletController)
+);
 router.get("/:walletId/balance", routeWrapper(getBalanceController));
 router.get(
   "/:walletId/transaction-history",

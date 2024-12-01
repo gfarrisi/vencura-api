@@ -3,17 +3,14 @@ import { getDb } from "./postgres";
 
 export const getWallet = async (
   userId: string,
-  walletId: string,
-  isPrimaryWallet?: boolean
+  walletId: string
 ): Promise<UserWallet | undefined> => {
   try {
     const db = await getDb();
     const query = `
     SELECT id, user_id as "userId", address, encrypted_private_key as "encryptedPrivateKey", encryption_iv as "encryptionIv", is_primary_wallet as "isPrimaryWallet", created_at as "createdAt", updated_at as "updatedAt"
     FROM vencura.wallets
-    WHERE id = $1 AND user_id = $2 AND is_active = true ${
-      isPrimaryWallet ? "AND is_primary_wallet = true" : ""
-    }
+    WHERE id = $1 AND user_id = $2 AND is_active = true 
   `;
     const result = await db.query<UserWallet>(query, [walletId, userId]);
     if (result.rows.length === 0) {
@@ -23,6 +20,27 @@ export const getWallet = async (
   } catch (e) {
     console.error(e);
     throw "Error getting wallet: " + e;
+  }
+};
+
+export const getPrimaryWallet = async (
+  userId: string
+): Promise<UserWallet | undefined> => {
+  try {
+    const db = await getDb();
+    const query = `
+    SELECT id, user_id as "userId", address, encrypted_private_key as "encryptedPrivateKey", encryption_iv as "encryptionIv", is_primary_wallet as "isPrimaryWallet", created_at as "createdAt", updated_at as "updatedAt"
+    FROM vencura.wallets
+    WHERE user_id = $1 AND is_primary_wallet = true AND is_active = true
+  `;
+    const result = await db.query<UserWallet>(query, [userId]);
+    if (result.rows.length === 0) {
+      return undefined;
+    }
+    return result.rows[0];
+  } catch (e) {
+    console.error(e);
+    throw "Error getting primary wallet: " + e;
   }
 };
 

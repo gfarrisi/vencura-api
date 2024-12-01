@@ -11,7 +11,7 @@ import {
   GetSecretValueCommand,
   UpdateSecretCommand,
 } from "@aws-sdk/client-secrets-manager";
-import { createWallet, getWallet } from "../db/wallet";
+import { createWallet, getPrimaryWallet, getWallet } from "../db/wallet";
 import { UserWallet } from "../types/user.types";
 
 const providerUrl = "https://ethereum-sepolia.blockpi.network/v1/rpc/public";
@@ -279,5 +279,22 @@ export class WalletManager {
     }
 
     return this.sendTransaction(userId, fromWalletId, toWallet.address, amount);
+  }
+
+  async getSignatureFromPrimaryWallet(
+    userId: string,
+    userEmail: string
+  ): Promise<{ signature: string; message: string; custodialAddress: string }> {
+    const primaryWallet = await getPrimaryWallet(userId);
+    if (!primaryWallet) {
+      throw new Error("Primary wallet not found");
+    }
+    const wallet = await this.getWallet(userId, primaryWallet.id);
+    const message = `Authorize new wallet creation for account ${userEmail} at timestamp ${Date.now()} using primary wallet ${
+      primaryWallet.address
+    }`;
+
+    const signature = await wallet.signMessage(message);
+    return { signature, message, custodialAddress: primaryWallet.address };
   }
 }
