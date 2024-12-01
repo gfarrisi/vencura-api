@@ -1,18 +1,43 @@
-import { Request, Response, NextFunction, RequestHandler } from "express";
+import { NextFunction, Request, Response } from "express";
+export interface CustomRequest extends Request {
+  userId?: string;
+}
 
-const routeWrapper = (
-  handler: (req: Request, res: Response) => Promise<any>
-): RequestHandler => {
-  return async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+type RouteHandler = (
+  req: CustomRequest,
+  res: Response,
+  next: NextFunction
+) => Promise<void | Response<any, Record<string, any>>>;
+
+interface CustomError extends Error {
+  status?: number;
+  data?: object;
+}
+
+//todo: come back to the any
+const routeWrapper = (routeHandler: any): any => {
+  return async (req: CustomRequest, res: Response, next: NextFunction) => {
     try {
-      await handler(req, res);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: "Internal Server Error" });
+      return await routeHandler(req, res, next);
+    } catch (error: any) {
+      // Log detailed information about the request that caused the error
+      console.error(
+        `Error occurred at ${req.method} ${req.originalUrl}:`,
+        error
+      );
+      const customError: CustomError = new Error(
+        error?.message || "An unexpected error occurred"
+      );
+      customError.status = 500;
+      customError.data = {
+        ...req.params,
+        method: req.method,
+        endpoint: req.originalUrl,
+        msg: error?.message || "An unexpected error occurred",
+        status: "error",
+      };
+      // error is thrown to the error handler middleware
+      throw customError;
     }
   };
 };

@@ -1,19 +1,21 @@
 import { User } from "../types/user.types";
 import { connectToPostgres, getDb } from "./postgres";
 
-export const getUser = async (email?: string): Promise<User | undefined> => {
-  if (!email) {
+export const getUser = async (
+  email?: string,
+  userId?: string
+): Promise<User | undefined> => {
+  if (!email && !userId) {
     return undefined;
   }
   try {
     const db = await getDb();
-    console.log({ db });
     let query = `
       SELECT id, email, created_at, updated_at
       FROM vencura.users
-      WHERE email = $1
+      WHERE email = $1 OR id = $2
     `;
-    const result = await db.query<User>(query, [email]);
+    const result = await db.query<User>(query, [email, userId]);
     return result.rows[0];
   } catch (e) {
     console.error(e);

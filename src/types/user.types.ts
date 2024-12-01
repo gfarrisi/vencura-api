@@ -3,14 +3,19 @@ export type User = {
   email: string;
   createdAt: number;
   updatedAt: number;
-  wallets: Wallet[];
+  wallets: Pick<
+    UserWallet,
+    "id" | "userId" | "address" | "createdAt" | "updatedAt"
+  >[];
 };
 
-export type Wallet = {
+export type UserWallet = {
   id: string;
+  userId: string;
   address: string;
   encryptedPrivateKey: string;
   encryptionIv: string;
+  isPrimaryWallet: boolean;
   createdAt: number;
   updatedAt: number;
 };

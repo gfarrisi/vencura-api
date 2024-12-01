@@ -12,8 +12,6 @@ export const postgress = async function (req?: Request, res?: Response) {
     console.log("🟢 Connecting to postgres");
     pgClient = await connectToPostgres(pgClient);
     const res = (await pgClient.query(INIT_SCRIPT)) as any;
-    console.log({ res });
-    console.log({ pgClient });
     console.log("🟢 CONNECTED TO POSTGRESS");
   } catch (e) {
     console.error(e);

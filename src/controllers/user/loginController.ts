@@ -2,25 +2,31 @@ import crypto from "crypto";
 import { config } from "dotenv";
 import jwt, { sign } from "jsonwebtoken";
 import { createUser, getUser } from "../../db/user";
-import { User, Wallet } from "../../types/user.types";
+import { User, UserWallet } from "../../types/user.types";
 import { validationResult } from "express-validator";
 import { Request, Response } from "express";
 import { WalletManager } from "../../classes/WalletManager";
 import { getWalletConfig } from "../../utils/walletConfig";
+import { getAllWallets } from "../../db/wallet";
+import { CustomRequest } from "../routeWrapper";
 config();
 
 export function validateAccessToken(
   userId: string,
   userEmail?: string,
-  userWallets?: Wallet[]
+  userWallets?: Pick<
+    UserWallet,
+    "id" | "userId" | "address" | "createdAt" | "updatedAt"
+  >[]
 ) {
   if (!process.env.SECRET_TOKEN) {
-    throw new Error("TOP_SECRET_TOKEN is not defined");
+    throw new Error("SECRET_TOKEN is not defined");
   }
   return sign({ userId, userEmail, userWallets }, process.env.SECRET_TOKEN, {
     expiresIn: `${60 * 60 * 24 * 60}s`, //60 day expiration
   });
 }
+
 interface NameService {
   name: string;
 }
@@ -63,7 +69,6 @@ function verifyAsync(
 ): Promise<JWTSessionData> {
   return new Promise((resolve, reject) => {
     jwt.verify(token, secretOrPublicKey, (err: any, decoded: any) => {
-      console.log({ err, decoded });
       if (err) {
         return reject(err);
       }
@@ -75,25 +80,34 @@ function verifyAsync(
   });
 }
 
-async function setUpUser(email: string) {
+async function setUpUser(email: string): Promise<User> {
   const newUser = await createUser(email);
   if (!newUser) {
     throw new Error("User could not be created");
   }
-  const config = getWalletConfig();
-  if (!config.ENCRYPTION_KEY || !config.ENCRYPTION_IV) {
-    throw new Error("Wallet config not found");
+  const walletManager = new WalletManager();
+  const { newWallet } = await walletManager.createWallet(newUser.id);
+  if (!newWallet) {
+    throw new Error("Wallet could not be created");
   }
-  const walletManager = new WalletManager({
-    ENCRYPTION_KEY: config.ENCRYPTION_KEY,
-    ENCRYPTION_IV: config.ENCRYPTION_IV,
-  });
-  await walletManager.createWallet(newUser.id);
+  return {
+    ...newUser,
+    wallets: [newWallet],
+  };
+}
+
+async function setUpWallet(userId: string): Promise<UserWallet> {
+  const walletManager = new WalletManager();
+  const { newWallet } = await walletManager.createWallet(userId, true);
+  if (!newWallet) {
+    throw new Error("Wallet could not be created");
+  }
+  return newWallet;
 }
 
 export async function verifyUser(
   authToken: string
-): Promise<{ token: string } | undefined> {
+): Promise<{ token: string; user: User | undefined } | undefined> {
   const publicKey = process.env.DYNAMIC_PUBLIC_KEY_BASE64
     ? Buffer.from(process.env.DYNAMIC_PUBLIC_KEY_BASE64, "base64").toString(
         "ascii"
@@ -101,16 +115,14 @@ export async function verifyUser(
     : "";
   try {
     const data: JWTSessionData = await verifyAsync(authToken, publicKey);
-    console.log({ data });
     const email = data.verified_credentials.filter(
       (x) => x.format === "email"
     )[0]?.email;
     const existingUser = await getUser(email);
-    console.log({ existingUser });
     let user: User | undefined;
     //if user does not exist this means it is a new user and we should create their account
     if (!existingUser && email) {
-      const newUser = await createUser(email);
+      const newUser = await setUpUser(email);
       //todo: this is where i create their custodial wallet
       if (!newUser || "error" in newUser) {
         throw new Error(
@@ -118,15 +130,21 @@ export async function verifyUser(
             (newUser && "error" in newUser ? newUser?.error : "")
         );
       }
-      console.log({ newUser });
       user = newUser;
     } else {
-      user = existingUser;
+      if (existingUser) {
+        let wallets = await getAllWallets(existingUser.id);
+        if (wallets.length === 0) {
+          const newWallet = await setUpWallet(existingUser.id);
+          wallets.push(newWallet);
+        }
+        user = { ...existingUser, wallets };
+      }
     }
 
     if (!!user?.id) {
-      const token = validateAccessToken(user.id, email);
-      return { token };
+      const token = validateAccessToken(user.id, email, user.wallets);
+      return { token, user };
     } else {
       throw new Error("User not found or could not be verified");
     }
@@ -136,7 +154,10 @@ export async function verifyUser(
   }
 }
 
-export async function userLoginController(req: Request, res: Response) {
+export async function userLoginController(
+  req: CustomRequest,
+  res: Response<any, Record<string, any>>
+): Promise<Response<any, Record<string, any>>> {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -157,7 +178,9 @@ export async function userLoginController(req: Request, res: Response) {
       secure: isDevelopment ? false : true, //needs to be set to false for localhost
       sameSite: isDevelopment ? "lax" : "strict", //should be set to "strict" for prod and "none" for localhost
     });
-    return res.status(200).json({ status: "Authorized" });
+    return res
+      .status(200)
+      .json({ status: "Authorized", user: verifiedUser.user });
   } catch (e) {
     console.log(e);
     return res.status(500).json({ status: "Internal Server Error" });

@@ -38,7 +38,6 @@ export const disconnectPostgres = async () => {
 };
 
 export async function getDb() {
-  console.log("getDb", { pgClient });
   if (!pgClient) {
     pgClient = await connectToPostgres(pgClient);
   }

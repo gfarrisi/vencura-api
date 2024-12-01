@@ -1,17 +1,30 @@
 import { Router } from "express";
 import { body, validationResult } from "express-validator";
 import routeWrapper from "../controllers/routeWrapper";
+import { getBalanceController } from "../controllers/wallet/getBalanceController";
+import { sendTransactionController } from "../controllers/wallet/sendTransactionController";
+import { getTransactionHistoryController } from "../controllers/wallet/getTransactionHistory";
+import fundWalletFromOtherWalletController from "../controllers/wallet/fundWalletFromOtherWalletController";
 
 const router = Router();
 
-router.get("/");
+router.get("/:walletId/balance", routeWrapper(getBalanceController));
+router.get(
+  "/:walletId/transaction-history",
+  routeWrapper(getTransactionHistoryController)
+);
+router.post(
+  "/:walletId/send",
+  body("toAddress").isString(),
+  body("amount").isString(),
+  routeWrapper(sendTransactionController)
+);
 
-//might not need this, because i think you'll just create the new user when you verify and they dont have an account already
-router.post("/", body("email").isEmail());
-// router.post(
-//   "/",
-//   body("email").isEmail(),
-//   routeWrapper(addUserAccountChangeController)
-// );
+router.post(
+  "/:walletId/fund-from-other-wallet",
+  body("fromWalletId").isString(),
+  body("amount").isString(),
+  routeWrapper(fundWalletFromOtherWalletController)
+);
 
 export default router;
