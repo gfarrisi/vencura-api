@@ -60,7 +60,9 @@ export const getTransactionHistoryController = async (
 ): Promise<Response<any, Record<string, any>>> => {
   const userId = req.userId;
   if (!userId) {
-    throw new Error("User ID is required");
+    throw new Error(
+      "User ID not found, please make sure user is authenticated."
+    );
   }
   const { walletId } = req.params;
   const wallet = await getWallet(userId, walletId);

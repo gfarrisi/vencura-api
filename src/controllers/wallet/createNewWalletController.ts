@@ -1,6 +1,6 @@
 import { Response } from "express";
 import { CustomRequest } from "../routeWrapper";
-import { createWallet } from "../../db/wallet";
+import { createWallet, getPrimaryWallet } from "../../db/wallet";
 import { WalletManager } from "../../classes/WalletManager";
 import { getUser } from "../../db/user";
 import { getUserAndAllWallets } from "../helpers/getUserWithAllWallets";
@@ -16,38 +16,28 @@ export const createNewWalletController = async (
       throw new Error("User ID is required");
     }
 
-    const {
-      custodialSignature,
-      userSignature,
-      message,
-      custodialAddress,
-      userAddress,
-    } = req.body;
-
-    // verify custodial signature
-    const recoveredCustodialAddress = ethers.verifyMessage(
-      message,
-      custodialSignature
-    );
-    if (
-      recoveredCustodialAddress.toLowerCase() !== custodialAddress.toLowerCase()
-    ) {
-      throw new Error("Invalid custodial signature");
+    const user = await getUser(undefined, userId);
+    if (!user) {
+      throw new Error("User not found");
     }
 
-    // verify user browser wallet signature
-    const recoveredUserAddress = ethers.verifyMessage(message, userSignature);
-    if (recoveredUserAddress.toLowerCase() !== userAddress.toLowerCase()) {
-      throw new Error("Invalid user signature");
-    }
-
+    //get the signature from the primary wallet to verify before creating the new wallet
+    const email = user.email;
     const walletManager = new WalletManager();
-    await walletManager.createWallet(userId);
+    const signingData = await walletManager.getSignatureFromPrimaryWallet(
+      userId,
+      email
+    );
+    if (!signingData) {
+      throw new Error("Failed to get signature");
+    }
 
-    //-->could store the message in the db for future reference
-
-    const user = await getUserAndAllWallets(userId);
-    return res.status(200).json({ updatedUser: user });
+    const newWallet = await walletManager.createWallet(userId);
+    if (!newWallet) {
+      throw new Error("Failed to create new wallet");
+    }
+    const updatedUser = await getUserAndAllWallets(userId);
+    return res.status(200).json({ updatedUser });
   } catch (error) {
     console.error("Error creating new wallet:", error);
     return res.status(500).json({ error: "Failed to create new wallet" });

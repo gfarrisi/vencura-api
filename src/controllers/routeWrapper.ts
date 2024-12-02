@@ -3,18 +3,11 @@ export interface CustomRequest extends Request {
   userId?: string;
 }
 
-type RouteHandler = (
-  req: CustomRequest,
-  res: Response,
-  next: NextFunction
-) => Promise<void | Response<any, Record<string, any>>>;
-
 interface CustomError extends Error {
   status?: number;
   data?: object;
 }
 
-//todo: come back to the any
 const routeWrapper = (routeHandler: any): any => {
   return async (req: CustomRequest, res: Response, next: NextFunction) => {
     try {
