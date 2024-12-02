@@ -6,7 +6,6 @@ import { User, UserWallet } from "../../types/user.types";
 import { validationResult } from "express-validator";
 import { Request, Response } from "express";
 import { WalletManager } from "../../classes/WalletManager";
-import { getWalletConfig } from "../../utils/walletConfig";
 import { getAllWallets } from "../../db/wallet";
 import { CustomRequest } from "../routeWrapper";
 config();
