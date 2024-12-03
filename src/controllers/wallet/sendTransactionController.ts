@@ -58,7 +58,7 @@ export const sendTransactionController = async (
       throw new Error("Message not sent");
     }
 
-    return res.status(200).json({ txn });
+    return res.status(200).json(txn);
   } catch (error: any) {
     console.error("Transaction error:", error);
     return res
