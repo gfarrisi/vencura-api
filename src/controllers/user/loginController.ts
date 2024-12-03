@@ -85,7 +85,7 @@ async function setUpUser(email: string): Promise<User> {
     throw new Error("User could not be created");
   }
   const walletManager = new WalletManager();
-  const { newWallet } = await walletManager.createWallet(newUser.id);
+  const { newWallet } = await walletManager.createWallet(newUser.id, true);
   if (!newWallet) {
     throw new Error("Wallet could not be created");
   }
