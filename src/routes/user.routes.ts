@@ -11,7 +11,7 @@ router.post(
   "/login",
   body("authToken").isString(),
   routeWrapper(userLoginController)
-); //verify user, set jwt cookie
+); //verify/setup user, set jwt cookie
 
 router.post("/logout", routeWrapper(userLogoutController));
 
