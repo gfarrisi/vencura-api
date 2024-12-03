@@ -38,8 +38,11 @@ export const createNewWalletController = async (
     }
     const updatedUser = await getUserAndAllWallets(userId);
     return res.status(200).json({ updatedUser });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating new wallet:", error);
-    return res.status(500).json({ error: "Failed to create new wallet" });
+    return res.status(500).json({
+      error: "Failed to create new wallet server error",
+      msg: error.message,
+    });
   }
 };
