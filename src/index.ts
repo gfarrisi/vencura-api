@@ -20,7 +20,7 @@ app.use((req, res, next) => {
 });
 
 const corsOptions: cors.CorsOptions = {
-  origin: true,
+  origin: true, //update to only allow certain domains for more security
   credentials: true,
 };
 app.use(cors(corsOptions));

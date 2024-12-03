@@ -33,7 +33,7 @@ export const sendTransactionController = async (
       userId,
       walletId,
       toAddress,
-      amount
+      amount?.toString()
     );
 
     if (!txn.success) {
