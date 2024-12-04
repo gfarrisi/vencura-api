@@ -58,30 +58,39 @@ export const getTransactionHistoryController = async (
   req: CustomRequest,
   res: Response<any, Record<string, any>>
 ): Promise<Response<any, Record<string, any>>> => {
-  const userId = req.userId;
-  if (!userId) {
-    throw new Error(
-      "User ID not found, please make sure user is authenticated."
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      throw new Error(
+        "User ID not found, please make sure user is authenticated."
+      );
+    }
+    const { walletId } = req.params;
+    const wallet = await getWallet(userId, walletId);
+    if (!wallet) {
+      throw new Error(
+        "Wallet not found when trying to get transaction history"
+      );
+    }
+    const txns = await getTxnsFromEtherscan(wallet.address);
+    const txnHistory: TransactionHistory[] = txns.result.map(
+      (txn: EtherscanTransaction) => ({
+        toAddress: txn.to,
+        fromAddress: txn.from,
+        amount: parseFloat(formatEther(txn.value)).toFixed(4),
+        timestamp: txn.timeStamp,
+        txnHash: txn.hash,
+      })
     );
+    //order by most recent timestamp
+    const sortedTxnHistory = txnHistory.sort(
+      (a, b) => parseInt(b.timestamp) - parseInt(a.timestamp)
+    );
+    return res.status(200).json({ transactions: sortedTxnHistory });
+  } catch (error: any) {
+    console.error("Transaction history fetch error:", error);
+    return res
+      .status(500)
+      .json({ error: error.message || "Transaction history fetch failed" });
   }
-  const { walletId } = req.params;
-  const wallet = await getWallet(userId, walletId);
-  if (!wallet) {
-    throw new Error("Wallet not found when trying to get transaction history");
-  }
-  const txns = await getTxnsFromEtherscan(wallet.address);
-  const txnHistory: TransactionHistory[] = txns.result.map(
-    (txn: EtherscanTransaction) => ({
-      toAddress: txn.to,
-      fromAddress: txn.from,
-      amount: parseFloat(formatEther(txn.value)).toFixed(4),
-      timestamp: txn.timeStamp,
-      txnHash: txn.hash,
-    })
-  );
-  //order by most recent timestamp
-  const sortedTxnHistory = txnHistory.sort(
-    (a, b) => parseInt(b.timestamp) - parseInt(a.timestamp)
-  );
-  return res.status(200).json({ transactions: sortedTxnHistory });
 };
